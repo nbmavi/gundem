@@ -6,7 +6,7 @@ HEADER=b"Subject: =?utf-8?q?=C3=96deme_bildirimi?=\r\nFrom: Sender <sender@examp
 BODY=HEADER+b"Hello from Yandex"
 class Fake:
     def __init__(self): self.sock=MagicMock(); self.calls=[];self.logged_out=False; self.validity=b"42"
-    def login(self,*args): return "OK",[b"done"]
+    def login(self,*args): self.login_args=args; return "OK",[b"done"]
     def select(self,*args,**kwargs): self.calls.append(("select",args,kwargs));return "OK",[b"2"]
     def response(self,*args): return "UIDVALIDITY",[self.validity]
     def uid(self,*args):
@@ -70,6 +70,18 @@ class MailTests(unittest.TestCase):
     def test_connect_does_not_open_mailbox(self):
         self.payload["operation"]="connect"
         self.assertTrue(self.run_reader()["connected"])
+        self.assertFalse(self.client.calls)
+    def test_shared_mailbox_uses_own_technical_login(self):
+        self.payload["credentials"].update(email="shared@example.com",login="example.com/user/shared")
+        self.run_reader()
+        self.assertEqual(self.client.login_args,("example.com/user/shared","test-app-password"))
+    def test_existing_account_uses_full_email(self):
+        self.run_reader()
+        self.assertEqual(self.client.login_args[0],"test@yandex.com")
+    def test_invalid_shared_login_is_rejected_before_connection(self):
+        self.payload["credentials"]["login"]="example.com/user/shared\r\n"
+        with self.assertRaises(MailError) as e:self.run_reader()
+        self.assertEqual(e.exception.code,"INVALID_LOGIN")
         self.assertFalse(self.client.calls)
     def test_body_size_cap(self):
         self.payload.update(operation="read",args={"uid":"2","uid_validity":"42"})
