@@ -128,10 +128,13 @@ def run_mail(payload, factory=imaplib.IMAP4_SSL):
     operation, credentials, args = payload.get("operation"), payload.get("credentials"), payload.get("args", {})
     if operation not in {"connect", "check", "search", "read"} or not isinstance(credentials, dict) or not isinstance(args, dict):
         raise MailError("INVALID_ARGUMENT", "İşlem geçersiz.")
-    host, login, password = credentials.get("host"), credentials.get("email"), credentials.get("password")
+    host, login, password = credentials.get("host"), credentials.get("login",credentials.get("email")), credentials.get("password")
     if host not in ALLOWED_HOSTS: raise MailError("INVALID_HOST", "Yalnızca Yandex posta sunucuları desteklenir.")
-    if not isinstance(login, str) or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+",login) or len(login)>254:
-        raise MailError("INVALID_EMAIL", "Geçerli bir e-posta adresi gerekli.")
+    if not isinstance(login,str) or len(login)>254 or not (
+        re.fullmatch(r"[^\s@/\x00-\x1f\x7f]+@[^\s@/\x00-\x1f\x7f]+\.[^\s@/\x00-\x1f\x7f]+",login) or
+        re.fullmatch(r"[a-zA-Z0-9.-]+/[^\s/@\x00-\x1f\x7f]+/[^\s/@\x00-\x1f\x7f]+",login)
+    ):
+        raise MailError("INVALID_LOGIN", "Geçerli e-posta veya alanadı/kullanıcı/posta-kutusu giriş adı gerekli.")
     if not isinstance(password, str) or not 8 <= len(password) <= 256 or re.search(r"[\x00\r\n]", password):
         raise MailError("INVALID_PASSWORD", "Geçerli uygulama şifresi gerekli.")
     folder = args.get("folder", "INBOX")
