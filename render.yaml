@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: yandex-mail-bridge-batuhan
+    runtime: python
+    region: frankfurt
+    plan: free
+    buildCommand: python3 -m py_compile bridge/server.py
+    startCommand: python3 bridge/server.py
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12
+      - key: MAIL_BRIDGE_TOKEN
+        sync: false
